@@ -35,7 +35,7 @@ local function getSurvivorItem(player)
     for _, obj in pairs(player.Character:GetDescendants()) do
         if obj:IsA("Tool") or obj:IsA("Accessory") or obj:IsA("Model") then
             if displayNames[obj.Name] then
-                return "("..displayNames[obj.Name]..")" -- Nome customizado entre parênteses
+                return "("..displayNames[obj.Name]..")"
             end
         end
     end
@@ -219,7 +219,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ===================== UPDATE ESP =====================
+-- ===================== UPDATE ESP OTIMIZADO =====================
 local function updatePlayersESP()
     local LPPos = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and LP.Character.HumanoidRootPart.Position
     if not LPPos then return end
@@ -244,7 +244,6 @@ local function updatePlayersESP()
                             clearLabel(p.Character)
                         end
                     else
-                        -- Survivors: adicionar item
                         local item = getSurvivorItem(p)
                         if item then
                             labelText = labelText.." <font color='rgb(0,255,255)'>"..item.."</font>"
@@ -261,50 +260,53 @@ local function updatePlayersESP()
     end
 end
 
-RunService.Heartbeat:Connect(function()
-    local LPPos = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and LP.Character.HumanoidRootPart.Position
-    if not LPPos then return end
+-- ===================== HEARTBEAT LOOP OTIMIZADO =====================
+task.spawn(function()
+    while true do
+        local LPPos = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and LP.Character.HumanoidRootPart.Position
+        if LPPos then
+            for obj,typeName in pairs(trackedObjects) do
+                if obj and obj.Parent then
+                    local set = espSettings[typeName]
+                    if set and set.Enabled then
+                        local hl = obj:FindFirstChild("VD_HL")
+                        if not hl then
+                            hl = Instance.new("Highlight")
+                            hl.Name = "VD_HL"
+                            hl.Adornee = obj
+                            hl.FillTransparency = 1
+                            hl.OutlineColor = set.Color
+                            hl.OutlineTransparency = 0
+                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            hl.Parent = obj
+                        else
+                            hl.OutlineColor = set.Color
+                        end
 
-    for obj,typeName in pairs(trackedObjects) do
-        if obj and obj.Parent then
-            local set = espSettings[typeName]
-            if set and set.Enabled then
-                local hl = obj:FindFirstChild("VD_HL")
-                if not hl then
-                    hl = Instance.new("Highlight")
-                    hl.Name = "VD_HL"
-                    hl.Adornee = obj
-                    hl.FillTransparency = 1
-                    hl.OutlineColor = set.Color
-                    hl.OutlineTransparency = 0
-                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    hl.Parent = obj
-                else
-                    hl.OutlineColor = set.Color
-                end
-
-                if typeName=="Generators" then
-                    local progress = getGeneratorProgress(obj)
-                    if not generatorFinished(obj) then
-                        local percent = math.floor(progress*100)
-                        if percent==0 and progress>0 then percent=1 end
-                        local color = getProgressColor(progress)
-                        local text = "<font color='rgb(255,255,255)'>[</font><font color='rgb("..math.floor(color.R*255)..","..math.floor(color.G*255)..","..math.floor(color.B*255)..")'>"..percent.."%</font><font color='rgb(255,255,255)'>]</font>"
-                        ensureLabel(obj, text)
+                        if typeName=="Generators" then
+                            local progress = getGeneratorProgress(obj)
+                            if not generatorFinished(obj) then
+                                local percent = math.floor(progress*100)
+                                if percent==0 and progress>0 then percent=1 end
+                                local color = getProgressColor(progress)
+                                local text = "<font color='rgb(255,255,255)'>[</font><font color='rgb("..math.floor(color.R*255)..","..math.floor(color.G*255)..","..math.floor(color.B*255)..")'>"..percent.."%</font><font color='rgb(255,255,255)'>]</font>"
+                                ensureLabel(obj, text)
+                            else
+                                clearLabel(obj)
+                            end
+                        else
+                            clearLabel(obj)
+                        end
                     else
+                        clearHighlight(obj)
                         clearLabel(obj)
                     end
-                else
-                    clearLabel(obj)
                 end
-            else
-                clearHighlight(obj)
-                clearLabel(obj)
             end
+            updatePlayersESP()
         end
+        task.wait(0.2)
     end
-
-    updatePlayersESP()
 end)
 
 -- ===================== GUI =====================
